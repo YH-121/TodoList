@@ -1,0 +1,212 @@
+# 指示テンプレート（AIエージェント開発タスク：TODOリスト＋ポモロードタイマー）
+
+**タイトル:** AI TODOエージェント＋ポモロードタイマー（集中管理UX統合）
+
+**概要:**
+自然言語で入力されたタスクを自動抽出・管理し、さらに集中・休憩サイクルを制御するポモロードタイマーを統合したエージェントを開発する。
+ユーザーはCLI・GUI・APIいずれからでもタスクを登録し、同時に「ポモドーロ（例: 25分集中＋5分休憩）」をカスタムサイクルで実行できる。
+作業進行と集中度を可視化することで、心理的にも気持ちよいUXを提供する。
+
+---
+
+## 開発環境
+
+* **OS:** Windows 11
+* **エディタ:** Visual Studio Code
+* **その他:**
+
+  * Python 3.12（uvで仮想環境管理）
+  * ターミナル: Windows Terminal / PowerShell
+  * 通知: Windows Notification API or Toastify
+  * 効果音: `playsound` / `pygame` で軽量再生
+
+---
+
+## 技術スタック
+
+* **言語:** Python 3.12
+* **フレームワーク／ライブラリ:**
+
+  * FastAPI（API層）
+  * Typer（CLI）
+  * Tkinter（GUI）
+  * SQLModel + SQLite（タスク永続化）
+  * dateparser（自然言語日付）
+  * threading / asyncio（タイマー制御）
+  * rich（CLI表示用）
+  * pygame / playsound（サウンド）
+* **テストフレームワーク:** pytest + pytest-asyncio
+
+---
+
+## タスク詳細
+
+### 1. 初期セットアップ
+
+```bash
+uv init ai-todo-pomodoro
+cd ai-todo-pomodoro
+uv add fastapi uvicorn[standard] sqlmodel typer rich dateparser pygame playsound python-multipart
+uv add -D pytest pytest-asyncio ruff black
+```
+
+### 2. ファイル構成
+
+```
+ai-todo-pomodoro/
+├─ src/
+│  ├─ app/
+│  │  ├─ main.py              # FastAPIエントリポイント
+│  │  ├─ schemas.py
+│  │  ├─ db.py
+│  │  ├─ services.py
+│  │  ├─ nlp.py
+│  │  ├─ routers/
+│  │  │  ├─ tasks.py
+│  │  │  └─ timer.py          # ポモロード制御API
+│  │  └─ utils/
+│  │     └─ timecycle.py      # タイマー制御・サイクルロジック
+│  ├─ cli/
+│  │  └─ main.py              # CLI統合 (todo + timer)
+│  ├─ gui/
+│  │  ├─ app_tk.py            # GUI（TODO + Timer UI統合）
+│  │  └─ widgets/
+│  │     └─ circular_timer.py # 円形アニメーションUI
+│  └─ agents/
+│     └─ todo_agent.py        # NLPによる自然言語→タスク抽出
+├─ tests/
+│  ├─ test_tasks_api.py
+│  ├─ test_timer.py
+│  ├─ test_cli_timer.py
+│  └─ test_integration.py
+└─ README.md
+```
+
+---
+
+### 3. 実装
+
+#### 🧠 NLP + TODO機能
+
+前回同様、自然言語からタスク構造を抽出。
+
+#### ⏱ ポモロードタイマー機能
+
+**目的:** 集中→休憩→長休憩のサイクルを自動管理。ユーザーが「時間に追われる」のではなく「リズムを整える」感覚を得られるように。
+
+##### 機能仕様
+
+* **カスタムサイクル設定:**
+
+  ```yaml
+  {
+    "focus_minutes": 25,
+    "short_break_minutes": 5,
+    "long_break_minutes": 20,
+    "cycles_before_long_break": 4
+  }
+  ```
+* **機能概要**
+
+  * `start_timer()`：現在サイクルを開始
+  * `pause_timer()` / `resume_timer()`
+  * `reset_timer()`：初期化
+  * `next_cycle()`：自動または手動で次フェーズへ遷移
+  * GUIではアニメーション＋残り時間バーをリアルタイム更新
+  * 終了時にWindows通知＋効果音再生（好みで切替）
+  * CLIでは`rich.progress`でプログレスバー表示
+
+##### サイクル例
+
+> 25分集中 × 4 → 20分長休憩
+> 設定により `focus=50, short=10, long=30` など自由化可能
+
+##### UX演出
+
+* **GUI:**
+
+  * タイマー中は円形アニメーション＋色変化（集中=赤, 休憩=緑）
+  * 中断・再開ボタンは視覚的に明快
+  * サイクル進捗（1/4, 2/4 ...）表示
+* **CLI:**
+
+  * 「🔴 集中中」「🟢 休憩中」「💤 長休憩中」を絵文字で表現
+  * 終了時に「✨ Great job! Take a long break!」などメッセージ表示
+
+---
+
+### 4. テスト
+
+* **単体テスト**
+
+  * タイマーのサイクル遷移（集中→休憩→長休憩）
+  * カスタムサイクル設定が正しく反映されるか
+  * 終了通知イベントが正しく発火するか（mockで検証）
+* **統合テスト**
+
+  * TODO登録→タイマー開始→タスク完了までの流れ
+* **UXテスト**
+
+  * CLI出力がリアルタイムで更新されるか
+  * GUIのアニメーションがタイムラインと同期しているか
+
+---
+
+### 5. ドキュメント化
+
+* `README.md` に以下を追加：
+
+  * タイマー設定方法 (`config.toml` or GUI設定画面)
+  * コマンド例：
+
+    ```bash
+    uv run python -m src.cli.main timer start --focus 25 --short 5 --long 20 --cycles 4
+    ```
+  * GUI操作手順（スクリーンショット）
+* `UX.md` にワイヤーフレーム：
+
+  * タイマー画面（円形プログレス＋残り時間＋サイクル数）
+  * 設定モーダルのモックアップ
+  * 集中→休憩→長休憩の流れ図（色分け）
+
+---
+
+### 6. Git操作
+
+* ブランチ名: `feature/pomodoro-timer-v1`
+* コミットメッセージ例:
+
+  * `feat(timer): add Pomodoro cycle control logic`
+  * `feat(gui): implement circular timer animation`
+  * `chore(config): add default pomodoro settings`
+  * `test: add unit tests for timer cycle transitions`
+
+---
+
+## 受け入れ基準（UXを重視）
+
+* [ ] タスク追加からポモドーロ開始まで1クリック
+* [ ] サイクル回数・時間がGUI上でカスタム可能
+* [ ] 集中／休憩時の雰囲気変化（色・音・通知）で直感的に理解できる
+* [ ] CLI・GUI・API間で状態が同期（同じDB・設定）
+* [ ] 長時間作業でも心理的負担が少なく「整っている」感覚を得られる
+
+---
+
+## ビジュアル要件（UX強化）
+
+* **UIテーマ:** 「落ち着いた集中」
+
+  * 背景: グラデーション（紺→深緑）
+  * 集中時: オレンジ/赤系
+  * 休憩時: 緑系
+* **アニメーション:**
+
+  * 時間経過に合わせて円弧が回転
+  * 終了時の小さな光のエフェクト
+* **サウンド:**
+
+  * 開始：「軽いベル音」
+  * 休憩：「小鳥の鳴き声」
+  * 長休憩：「水の音」
+* **アイコン:** 時計・炎・葉・水滴をモチーフ（SVG推奨）

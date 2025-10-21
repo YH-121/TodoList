@@ -1,0 +1,1 @@
+# Pydantic/SQLModel のスケルトン（プレースホルダー）

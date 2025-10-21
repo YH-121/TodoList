@@ -1,20 +1,10 @@
-"""
-FastAPI エントリポイント。
-
-- `app`: ASGI アプリ本体
-- `create_app()`: アプリファクトリ
-
-依存ライブラリが未インストール環境でもインポート時に失敗しないよう、
-FastAPI が無い場合は軽量のダミーを提供します（起動はできません）。
-"""
-
 from __future__ import annotations
 
 from typing import Any
 
 try:
     from fastapi import FastAPI
-except Exception:  # FastAPI 未導入環境向けのフォールバック
+except Exception:  # FastAPI 未導入環境でもフォールバック
     class FastAPI:  # type: ignore
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             raise RuntimeError(
@@ -22,8 +12,24 @@ except Exception:  # FastAPI 未導入環境向けのフォールバック
             )
 
 
-def create_app() -> "FastAPI":
+def create_app(use_memory: bool = False) -> "FastAPI":
     app = FastAPI(title="AI TODO Agent + Pomodoro Timer", version="0.1.0")
+
+    # DB 初期化（存在時のみ）。サービスもここでバインド
+    try:
+        from .db import get_engine
+        from sqlmodel import SQLModel
+        engine = None if use_memory else get_engine()
+        if engine is not None and hasattr(SQLModel, "metadata"):
+            SQLModel.metadata.create_all(engine)  # type: ignore[attr-defined]
+
+        from .services import TodoService
+
+        # engine がない場合はメモリ利用
+        app.state.todo_service = TodoService(use_memory=(engine is None))
+    except Exception:
+        # 依存が未導入でもアプリ生成は可能に
+        pass
 
     # ルーターの登録（存在すれば）
     try:
@@ -32,7 +38,6 @@ def create_app() -> "FastAPI":
         app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
         app.include_router(timer.router, prefix="/timer", tags=["timer"])
     except Exception:
-        # 依存が未導入でもアプリ生成は可能に
         pass
 
     @app.get("/health")
@@ -46,5 +51,6 @@ def create_app() -> "FastAPI":
     return app
 
 
-# ASGI サーバーから参照されるデフォルトアプリ
+# ASGI サーバから参照されるデフォルトアプリ
 app = create_app()
+

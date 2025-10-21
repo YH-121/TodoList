@@ -34,23 +34,14 @@
   * dateparser（自然言語日付）
   * threading / asyncio（タイマー制御）
   * rich（CLI表示用）
-  * pygame / playsound（サウンド）
+  * playsound（サウンド）
 * **テストフレームワーク:** pytest + pytest-asyncio
 
 ---
 
-## タスク詳細
+## タスク詳細```
 
-### 1. 初期セットアップ
-
-```bash
-uv init ai-todo-pomodoro
-cd ai-todo-pomodoro
-uv add fastapi uvicorn[standard] sqlmodel typer rich dateparser pygame playsound python-multipart
-uv add -D pytest pytest-asyncio ruff black
-```
-
-### 2. ファイル構成
+### ファイル構成
 
 ```
 ai-todo-pomodoro/
@@ -84,7 +75,7 @@ ai-todo-pomodoro/
 
 ---
 
-### 3. 実装
+### 実装
 
 #### 🧠 NLP + TODO機能
 
@@ -130,7 +121,7 @@ ai-todo-pomodoro/
   * サイクル進捗（1/4, 2/4 ...）表示
 * **CLI:**
 
-  * 「🔴 集中中」「🟢 休憩中」「💤 長休憩中」を絵文字で表現
+  * 「🔴 集中」「🟢 休憩中」「💤 長休憩中」を絵文字で表現
   * 終了時に「✨ Great job! Take a long break!」などメッセージ表示
 
 ---
